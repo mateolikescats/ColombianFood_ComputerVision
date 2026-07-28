@@ -51,11 +51,21 @@ def extract_hog_features(img_bgr, target_size=(128, 128)):
     )
     return hog_features
 
+from PIL import Image
+
+def load_cv2_image_utf8(img_path):
+    """
+    Safely reads an image into OpenCV BGR format supporting non-ASCII UTF-8 file paths
+    (e.g., 'Buñuelo') on Windows.
+    """
+    pil_img = Image.open(img_path)
+    if pil_img.mode != "RGB":
+        pil_img = pil_img.convert("RGB")
+    rgb_arr = np.array(pil_img)
+    return cv2.cvtColor(rgb_arr, cv2.COLOR_RGB2BGR)
+
 def extract_image_features(img_path):
-    img = cv2.imread(str(img_path))
-    if img is None:
-        raise ValueError(f"Could not read image: {img_path}")
-        
+    img = load_cv2_image_utf8(img_path)
     hsv_feat = extract_color_hsv_hist(img)
     lab_feat = extract_color_lab_hist(img)
     lbp_feat = extract_lbp_texture(img)
@@ -63,6 +73,7 @@ def extract_image_features(img_path):
     
     # Combined feature vector
     return np.concatenate([hsv_feat, lab_feat, lbp_feat, hog_feat])
+
 
 def load_dataset_features(split_name, categories):
     X, y = [], []
@@ -131,7 +142,7 @@ def run_feature_extraction_pipeline():
         results[name] = {
             "val_accuracy": val_acc,
             "test_accuracy": test_acc,
-            "classification_report": classification_report(y_test, test_preds, target_names=categories, output_dict=True)
+            "classification_report": classification_report(y_test, test_preds, target_names=categories, output_dict=True, zero_division=0)
         }
         
         if val_acc > best_val_acc:
