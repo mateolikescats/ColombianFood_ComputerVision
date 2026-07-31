@@ -102,6 +102,13 @@ python train_cnn.py --model mobilenet_v3_small --epochs 10 --batch_size 16
 ```
 
 ### 5. Lanzar Aplicación en Tiempo Real con Cámara Web
+### 5. Optimizador de Hiperparámetros (Optuna) y Entrenamiento Extendido (CNN PyTorch)
+
+```bash
+python optimize_cnn.py --n_trials 8 --final_epochs 25
+```
+
+### 6. Lanzar Aplicación en Tiempo Real con Cámara Web
 
 #### Opción A: Interfaz Web Interactiva (Streamlit)
 ```bash
@@ -128,8 +135,10 @@ ArtificialVision_ColombianFood/
 ├── models/                     # Checkpoints y modelos guardados (.pth, .pkl)
 ├── preprocess_dataset.py       # Script de estandarización y aumentación
 ├── extract_features.py         # Pipeline CV Tradicional (HSV+LBP+HOG + ML)
-├── train_cnn.py                # Pipeline Deep Learning (PyTorch CNN)
+├── train_cnn.py                # Pipeline Deep Learning básico (PyTorch CNN)
+├── optimize_cnn.py             # Búsqueda de hiperparámetros (Optuna) + Entrenamiento 25 Épocas
 ├── realtime_app.py             # Aplicación de detección en tiempo real con cámara
+├── ColombianFood_Vision_Pipeline.ipynb # Notebook interactivo completo
 ├── requirements.txt            # Dependencias del proyecto
 └── README.md                   # Documentación principal
 ```
