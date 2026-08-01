@@ -34,7 +34,7 @@ def extract_color_lab_hist(img_bgr, bins=16):
 def extract_lbp_texture(img_bgr, P=24, R=3):
     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
     lbp = local_binary_pattern(gray, P, R, method="uniform")
-    n_bins = int(lbp.max() + 1)
+    n_bins = P + 2
     hist, _ = np.histogram(lbp.ravel(), density=True, bins=n_bins, range=(0, n_bins))
     return hist
 

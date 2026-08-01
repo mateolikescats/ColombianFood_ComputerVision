@@ -25,12 +25,22 @@ def load_cnn_model():
     
     if model_name == "mobilenet_v3_small":
         model = models.mobilenet_v3_small()
+        if 'best_params' in checkpoint:
+            dropout_rate = checkpoint['best_params'].get('dropout_rate', 0.2)
+            model.classifier[2] = nn.Dropout(p=dropout_rate)
         in_features = model.classifier[3].in_features
         model.classifier[3] = nn.Linear(in_features, len(class_names))
     elif model_name == "resnet18":
         model = models.resnet18()
         in_features = model.fc.in_features
-        model.fc = nn.Linear(in_features, len(class_names))
+        if "fc.1.weight" in checkpoint['state_dict']:
+            dropout_rate = checkpoint.get('best_params', {}).get('dropout_rate', 0.2)
+            model.fc = nn.Sequential(
+                nn.Dropout(p=dropout_rate),
+                nn.Linear(in_features, len(class_names))
+            )
+        else:
+            model.fc = nn.Linear(in_features, len(class_names))
     else:
         return None, None
         

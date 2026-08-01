@@ -40,3 +40,13 @@ models/*.pkl
 # OS files
 .DS_Store
 Thumbs.db
+
+# Raw source data folder
+raw_source/
+
+# Models checkpoints
+models/
+
+# Processed/ except (val/)
+Processed/*
+!Processed/val/
