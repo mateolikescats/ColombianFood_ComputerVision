@@ -89,6 +89,18 @@ def run_streamlit_app():
     st.sidebar.header("⚙️ Configuración")
     input_source = st.sidebar.radio("Selecciona la fuente de entrada:", ["📷 Cámara web en directo", "📁 Subir imagen"])
     
+    st.sidebar.markdown("""
+    ### 📖 Instrucciones de Uso:
+    1. **Selecciona la Fuente**: Usa la cámara web en directo o sube una imagen de tu plato.
+    2. **Encuadre**: Intenta centrar el alimento en la imagen y mantener una distancia moderada (30-50 cm).
+    3. **Autodetección (Bounding Box)**: El sistema aislará automáticamente el contorno del alimento de manera cromática para centrar la clasificación y descartar ruido de fondo.
+    
+    ### ⚠️ Consideraciones al Usar:
+    - **Contraste de Fondo**: El algoritmo de bounding box busca objetos saturados. Funciona de manera óptima sobre platos blancos o grises y fondos neutros.
+    - **Confusión de Color**: Platos decorados con dibujos o mesas de madera con tonos dorados/marrones pueden confundir la segmentación y alterar el cuadro delimitador.
+    - **Iluminación**: Evita sombras demasiado marcadas o destellos directos que alteren la saturación real de la comida.
+    """)
+    
     image_to_process = None
     
     if input_source == "📷 Cámara web en directo":
@@ -99,11 +111,52 @@ def run_streamlit_app():
         uploaded_file = st.file_uploader("Elige una imagen JPG, PNG o HEIC...", type=["jpg", "jpeg", "png", "heic"])
         if uploaded_file is not None:
             image_to_process = Image.open(uploaded_file)
-            st.image(image_to_process, caption="Imagen cargada", use_column_width=True)
 
     if image_to_process is not None:
-        pred_label, confidence, probs = predict_cnn(image_to_process, cnn_model, class_names)
+        # Detectar Bounding Box cromático en Streamlit
+        img_np = np.array(image_to_process)
+        frame_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
         
+        # Segmentación HSV Otsu
+        hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
+        s_channel = hsv[:, :, 1]
+        _, thresh = cv2.threshold(s_channel, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        kernel = np.ones((5, 5), np.uint8)
+        thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+        thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+        
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        box_coords = None
+        if contours:
+            largest_contour = max(contours, key=cv2.contourArea)
+            if cv2.contourArea(largest_contour) > 2000:
+                x, y, w, h = cv2.boundingRect(largest_contour)
+                box_coords = (x, y, w, h)
+                
+        if box_coords is not None:
+            x, y, w, h = box_coords
+            y_min, y_max = max(0, y), min(frame_bgr.shape[0], y + h)
+            x_min, x_max = max(0, x), min(frame_bgr.shape[1], x + w)
+            crop_bgr = frame_bgr[y_min:y_max, x_min:x_max]
+            
+            if crop_bgr.size > 0:
+                crop_rgb = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2RGB)
+                pil_crop = Image.fromarray(crop_rgb)
+                pred_label, confidence, probs = predict_cnn(pil_crop, cnn_model, class_names)
+                
+                # Dibujar bounding box en copia de la imagen original
+                marked_img = img_np.copy()
+                cv2.rectangle(marked_img, (x, y), (x + w, y + h), (0, 255, 0), 4)
+                st.image(marked_img, caption="Alimento detectado con Bounding Box", use_column_width=True)
+            else:
+                pred_label, confidence, probs = predict_cnn(image_to_process, cnn_model, class_names)
+                st.image(image_to_process, caption="Imagen cargada", use_column_width=True)
+        else:
+            pred_label, confidence, probs = predict_cnn(image_to_process, cnn_model, class_names)
+            st.image(image_to_process, caption="Imagen cargada (No se autodetectó Bounding Box)", use_column_width=True)
+            
         st.success(f"### 🍽️ Predicción: **{pred_label}**")
         st.metric(label="Nivel de Confianza", value=f"{confidence * 100:.2f}%")
         
@@ -125,22 +178,67 @@ def run_opencv_webcam():
         print("Error: Could not open camera.")
         return
 
+    print("\n==========================================")
     print("Press 'q' to exit OpenCV live stream...")
+    print("Consideraciones de Uso de Bounding Box:")
+    print("  - Coloca el alimento sobre un plato claro (contraste).")
+    print("  - Evita mover excesivamente rápido la cámara.")
+    print("==========================================\n")
+    
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        # Convert OpenCV BGR frame to PIL Image
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        pil_img = Image.fromarray(rgb_frame)
+        # Segmentación en tiempo real para extraer Bounding Box
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        s_channel = hsv[:, :, 1]
+        _, thresh = cv2.threshold(s_channel, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        kernel = np.ones((5, 5), np.uint8)
+        thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+        thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+        
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        box_coords = None
+        if contours:
+            largest_contour = max(contours, key=cv2.contourArea)
+            if cv2.contourArea(largest_contour) > 2500: # Filtro de ruido
+                x, y, w, h = cv2.boundingRect(largest_contour)
+                box_coords = (x, y, w, h)
 
-        label, conf, _ = predict_cnn(pil_img, cnn_model, class_names)
-
-        # Draw prediction overlay
-        text = f"{label}: {conf * 100:.1f}%"
-        cv2.rectangle(frame, (10, 10), (450, 60), (0, 0, 0), -1)
-        cv2.putText(frame, text, (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
+        if box_coords is not None:
+            x, y, w, h = box_coords
+            y_min, y_max = max(0, y), min(frame.shape[0], y + h)
+            x_min, x_max = max(0, x), min(frame.shape[1], x + w)
+            crop_bgr = frame[y_min:y_max, x_min:x_max]
+            
+            if crop_bgr.size > 0:
+                crop_rgb = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2RGB)
+                pil_crop = Image.fromarray(crop_rgb)
+                label, conf, _ = predict_cnn(pil_crop, cnn_model, class_names)
+                
+                # Dibujar bounding box verde y overlay
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                text = f"{label}: {conf * 100:.1f}%"
+                cv2.putText(frame, text, (x, max(y - 10, 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            else:
+                # Fallback full frame
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                pil_img = Image.fromarray(rgb_frame)
+                label, conf, _ = predict_cnn(pil_img, cnn_model, class_names)
+                cv2.putText(frame, "No crop area", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        else:
+            # Fallback a clasificar frame completo
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            pil_img = Image.fromarray(rgb_frame)
+            label, conf, _ = predict_cnn(pil_img, cnn_model, class_names)
+            
+            cv2.putText(frame, "Buscando alimento...", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            # Dibujar un cuadro guía en el centro
+            h_f, w_f, _ = frame.shape
+            cv2.rectangle(frame, (w_f//4, h_f//4), (3*w_f//4, 3*h_f//4), (0, 0, 255), 1, cv2.LINE_AA)
 
         cv2.imshow("Colombian Food Classifier (Real-Time)", frame)
 
