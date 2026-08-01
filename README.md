@@ -1,10 +1,10 @@
-# 🇨🇴 Colombian Food Computer Vision Classification Pipeline
+# Colombian Food Computer Vision Classification Pipeline
 
 Un pipeline completo e industrial de **Visión Artificial y Aprendizaje Automático** para la estandarización, aumento de datos, extracción de características y clasificación automática de **15 comidas típicas colombianas**.
 
 ---
 
-## 📌 Arquitectura del Pipeline
+## Directores y Arquitectura del Pipeline
 
 ```mermaid
 graph TD
@@ -22,12 +22,12 @@ graph TD
     D2 --> E2["Extracción de Caracteristicas: HSV + Lab + LBP + HOG"]
     E2 --> E3["Clasificadores ML: SVM / Random Forest / XGBoost"]
 
-    E1 & E3 --> F["📱 Aplicación en Tiempo Real (realtime_app.py)"]
+    E1 & E3 --> F["Aplicación en Tiempo Real (realtime_app.py)"]
 ```
 
 ---
 
-## 🍲 Categorías de Comida Colombiana (15 Clases)
+## Categorías de Comida Colombiana (15 Clases)
 
 1. **Almojábana**
 2. **Arepa**
@@ -47,9 +47,13 @@ graph TD
 
 ---
 
-## ⚙️ Características Técnicas del Preprocesamiento
+## Adquisición de la Imagen
+- **Captura en Entornos Reales**: Las imágenes del dataset de 15 platos y snacks típicos colombianos fueron recolectadas bajo condiciones de iluminación natural y artificial en restaurantes, cafeterías y cocinas domésticas.
+- **Ángulos y Distancia Controlados**: Capturas frontales y cenitales (entre 45° y 90°) tomadas a una distancia controlada de 30-50 cm del alimento para maximizar la representatividad estructural del plato.
+- **Formato y Variabilidad**: Soporte multi-formato original (.jpg, .png, .heic, .webp) que capta variaciones en iluminación, recipientes (platos, hojas de plátano, etc.) y modos de cocción.
 
-- **Estandarización de Resolución**: **512x512 píxeles** en formato de color RGB `.jpg`.
+## Características Técnicas del Preprocesamiento
+- **Estandarización de Resolución**: Redimensionamiento a **512x512 píxeles** en formato de color RGB `.jpg`.
 - **Soporte Multi-formato (HEIC, PNG, JPG, WEBP)**: Conversión automática de imágenes de iPhone en formato `.HEIC` a JPEG estándar mediante `pillow_heif`.
 - **Recorte Adaptativo para Almojábana HEIC**: Las imágenes HEIC de la categoría *Almojábana* poseen el objeto enfocado en la sección inferior. El algoritmo aplica un recorte ajustado en la parte inferior (`y_start = height - target_square_dim`), descartando el fondo superior innecesario.
 - **División Estratificada**:
@@ -58,9 +62,11 @@ graph TD
   - **Pruebas (Test)**: 11%
 - **Aumento de Datos (Data Augmentation)**: Duplicación en **espejo horizontal (eje vertical)** aplicada **exclusivamente al conjunto de Entrenamiento (Train)** para evitar fugas de datos (*data leakage*) en validación y prueba.
 
----
+## Segmentación de Alimentos
+- **Aislamiento mediante Umbralización de Saturation (Otsu)**: Separación automática del alimento y el plato/fondo. Dado que los platos y fondos de mesa son típicamente neutros (blancos, grises; baja saturación) y la comida típica posee tonalidades cálidas intensas (alta saturación), se aplica umbralización de Otsu sobre el canal de saturación del espacio **HSV**.
+- **Morfología Matemática**: Operaciones morfológicas de *Opening* (apertura) y *Closing* (cierre) para eliminar ruido en los bordes de la máscara y rellenar imperfecciones internas antes de la máscara final.
 
-## 🧠 Modelos de Clasificación
+## Modelos de Clasificación
 
 ### 1. Visión Computacional Tradicional (`extract_features.py`)
 Extracción de descriptores visuales específicos para alimentos:
@@ -71,11 +77,11 @@ Extracción de descriptores visuales específicos para alimentos:
 
 ### 2. Redes Neuronales / Deep Learning (`train_cnn.py`)
 - **Transfer Learning** con `torchvision.models.mobilenet_v3_small` y `resnet18` ajustados a 15 clases.
-- Programación de tasa de aprendizaje con *Cosine Annealing* y optimizador `AdamW`.
+- **Programación de tasa de aprendizaje** con *Cosine Annealing* y optimizador `AdamW`.
 
 ---
 
-## 🚀 Guía de Uso e Instalación
+## Guía de Uso e Instalación
 
 ### 1. Requisitos Previos e Instalación
 
@@ -101,7 +107,6 @@ python extract_features.py
 python train_cnn.py --model mobilenet_v3_small --epochs 10 --batch_size 16
 ```
 
-### 5. Lanzar Aplicación en Tiempo Real con Cámara Web
 ### 5. Optimizador de Hiperparámetros (Optuna) y Entrenamiento Extendido (CNN PyTorch)
 
 ```bash
@@ -122,7 +127,7 @@ python realtime_app.py --opencv
 
 ---
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 ArtificialVision_ColombianFood/
