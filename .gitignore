@@ -50,3 +50,6 @@ models/
 # Processed/ except (val/)
 Processed/*
 !Processed/val/
+
+# Reporte técnico local (para uso personal/equipo local)
+Reporte_Tecnico_ColombianFood.pdf
