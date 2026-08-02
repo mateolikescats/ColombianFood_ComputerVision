@@ -149,13 +149,13 @@ def run_streamlit_app():
                 # Dibujar bounding box en copia de la imagen original
                 marked_img = img_np.copy()
                 cv2.rectangle(marked_img, (x, y), (x + w, y + h), (0, 255, 0), 4)
-                st.image(marked_img, caption="Alimento detectado con Bounding Box", use_column_width=True)
+                st.image(marked_img, caption="Alimento detectado con Bounding Box", use_container_width=True)
             else:
                 pred_label, confidence, probs = predict_cnn(image_to_process, cnn_model, class_names)
-                st.image(image_to_process, caption="Imagen cargada", use_column_width=True)
+                st.image(image_to_process, caption="Imagen cargada", use_container_width=True)
         else:
             pred_label, confidence, probs = predict_cnn(image_to_process, cnn_model, class_names)
-            st.image(image_to_process, caption="Imagen cargada (No se autodetectó Bounding Box)", use_column_width=True)
+            st.image(image_to_process, caption="Imagen cargada (No se autodetectó Bounding Box)", use_container_width=True)
             
         st.success(f"### 🍽️ Predicción: **{pred_label}**")
         st.metric(label="Nivel de Confianza", value=f"{confidence * 100:.2f}%")
